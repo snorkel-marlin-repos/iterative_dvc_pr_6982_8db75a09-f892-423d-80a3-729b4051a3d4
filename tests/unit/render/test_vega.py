@@ -9,12 +9,15 @@ from dvc.render.utils import find_vega, group_by_filename
 from dvc.render.vega import (
     INDEX_FIELD,
     REVISION_FIELD,
-    BadTemplateError,
     VegaRenderer,
     _find_data,
     _lists,
 )
-from dvc.repo.plots.template import NoFieldInDataError, TemplateNotFoundError
+from dvc.repo.plots.template import (
+    BadTemplateError,
+    NoFieldInDataError,
+    TemplateNotFoundError,
+)
 
 
 @pytest.mark.parametrize(
@@ -107,7 +110,7 @@ def test_one_column(tmp_dir, scm, dvc):
         }
     }
 
-    plot_string = VegaRenderer(data, dvc.plots.templates).as_json()
+    plot_string = VegaRenderer(data, dvc.plots.templates).get_vega()
 
     plot_content = json.loads(plot_string)
     assert plot_content["title"] == "mytitle"
@@ -133,7 +136,7 @@ def test_multiple_columns(tmp_dir, scm, dvc):
         "workspace": {"data": {"file.json": {"data": metric, "props": {}}}}
     }
 
-    plot_string = VegaRenderer(data, dvc.plots.templates).as_json()
+    plot_string = VegaRenderer(data, dvc.plots.templates).get_vega()
 
     plot_content = json.loads(plot_string)
     assert plot_content["data"]["values"] == [
@@ -169,7 +172,7 @@ def test_choose_axes(tmp_dir, scm, dvc):
     data = {
         "workspace": {"data": {"file.json": {"data": metric, "props": props}}}
     }
-    plot_string = VegaRenderer(data, dvc.plots.templates).as_json()
+    plot_string = VegaRenderer(data, dvc.plots.templates).get_vega()
 
     plot_content = json.loads(plot_string)
     assert plot_content["data"]["values"] == [
@@ -207,7 +210,7 @@ def test_confusion(tmp_dir, dvc):
         }
     }
 
-    plot_string = VegaRenderer(data, dvc.plots.templates).as_json()
+    plot_string = VegaRenderer(data, dvc.plots.templates).get_vega()
 
     plot_content = json.loads(plot_string)
     assert plot_content["data"]["values"] == [
@@ -245,7 +248,7 @@ def test_multiple_revs_default(tmp_dir, scm, dvc):
         },
     }
 
-    plot_string = VegaRenderer(data, dvc.plots.templates).as_json()
+    plot_string = VegaRenderer(data, dvc.plots.templates).get_vega()
 
     plot_content = json.loads(plot_string)
     assert plot_content["data"]["values"] == [
@@ -271,7 +274,7 @@ def test_metric_missing(tmp_dir, scm, dvc, caplog):
             "data": {"file.json": {"error": FileNotFoundError(), "props": {}}}
         },
     }
-    plot_string = VegaRenderer(data, dvc.plots.templates).as_json()
+    plot_string = VegaRenderer(data, dvc.plots.templates).get_vega()
 
     plot_content = json.loads(plot_string)
     assert plot_content["data"]["values"] == [
@@ -291,7 +294,7 @@ def test_custom_template(tmp_dir, scm, dvc, custom_template):
         "workspace": {"data": {"file.json": {"data": metric, "props": props}}}
     }
 
-    plot_string = VegaRenderer(data, dvc.plots.templates).as_json()
+    plot_string = VegaRenderer(data, dvc.plots.templates).get_vega()
 
     plot_content = json.loads(plot_string)
     assert plot_content["data"]["values"] == [
@@ -310,7 +313,7 @@ def test_raise_on_no_template(tmp_dir, dvc):
     }
 
     with pytest.raises(TemplateNotFoundError):
-        VegaRenderer(data, dvc.plots.templates).as_json()
+        VegaRenderer(data, dvc.plots.templates).get_vega()
 
 
 def test_bad_template(tmp_dir, dvc):
@@ -322,7 +325,7 @@ def test_bad_template(tmp_dir, dvc):
     }
 
     with pytest.raises(BadTemplateError):
-        VegaRenderer(data, dvc.plots.templates).as_json()
+        VegaRenderer(data, dvc.plots.templates).get_vega()
 
 
 def test_plot_choose_columns(tmp_dir, scm, dvc, custom_template):
@@ -337,7 +340,7 @@ def test_plot_choose_columns(tmp_dir, scm, dvc, custom_template):
         "workspace": {"data": {"file.json": {"data": metric, "props": props}}}
     }
 
-    plot_string = VegaRenderer(data, dvc.plots.templates).as_json()
+    plot_string = VegaRenderer(data, dvc.plots.templates).get_vega()
 
     plot_content = json.loads(plot_string)
     assert plot_content["data"]["values"] == [
@@ -356,7 +359,7 @@ def test_plot_default_choose_column(tmp_dir, scm, dvc):
         }
     }
 
-    plot_string = VegaRenderer(data, dvc.plots.templates).as_json()
+    plot_string = VegaRenderer(data, dvc.plots.templates).get_vega()
     plot_content = json.loads(plot_string)
 
     assert plot_content["data"]["values"] == [
@@ -378,7 +381,7 @@ def test_raise_on_wrong_field(tmp_dir, scm, dvc):
     }
 
     with pytest.raises(NoFieldInDataError):
-        VegaRenderer(data, dvc.plots.templates).as_json()
+        VegaRenderer(data, dvc.plots.templates).get_vega()
 
 
 @pytest.mark.parametrize(
