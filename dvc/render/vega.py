@@ -5,16 +5,23 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Union
 from funcy import first
 
 from dvc.exceptions import DvcException
-from dvc.render.base import (
-    INDEX_FIELD,
-    REVISION_FIELD,
-    BadTemplateError,
-    Renderer,
-)
+from dvc.render import Renderer
 from dvc.render.utils import get_files
 
 if TYPE_CHECKING:
+    from dvc.repo.plots.template import PlotTemplates
     from dvc.types import StrPath
+
+REVISION_FIELD = "rev"
+INDEX_FIELD = "step"
+
+
+class PlotMetricTypeError(DvcException):
+    def __init__(self, file):
+        super().__init__(
+            "'{}' - file type error\n"
+            "Only JSON, YAML, CSV and TSV formats are supported.".format(file)
+        )
 
 
 class PlotDataStructureError(DvcException):
@@ -101,11 +108,9 @@ class VegaRenderer(Renderer):
     </div>
     """
 
-    SCRIPTS = """
-    <script src="https://cdn.jsdelivr.net/npm/vega@5.20.2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5.1.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6.18.2"></script>
-    """
+    def __init__(self, data: Dict, templates: "PlotTemplates"):
+        super().__init__(data)
+        self.templates = templates
 
     def _squash_props(self) -> Dict:
         resolved: Dict[str, str] = {}
@@ -139,36 +144,7 @@ class VegaRenderer(Renderer):
                     datapoints.extend(tmp)
         return datapoints
 
-    def fill_template(self, template, datapoints, props=None):
-        props = props or {}
-
-        content = deepcopy(template.content)
-        if template.anchor_str("data") not in template.content:
-            anchor = template.anchor("data")
-            raise BadTemplateError(
-                f"Template '{template.name}' is not using '{anchor}' anchor"
-            )
-
-        if props.get("x"):
-            template.check_field_exists(datapoints, props.get("x"))
-        if props.get("y"):
-            template.check_field_exists(datapoints, props.get("y"))
-
-        content = template.fill_anchor(content, "data", datapoints)
-
-        props.setdefault("title", "")
-        props.setdefault("x_label", props.get("x"))
-        props.setdefault("y_label", props.get("y"))
-
-        names = ["title", "x", "y", "x_label", "y_label"]
-        for name in names:
-            value = props.get(name)
-            if value is not None:
-                content = template.fill_anchor(content, name, value)
-
-        return content
-
-    def as_json(self) -> Optional[str]:
+    def get_vega(self) -> Optional[str]:
         props = self._squash_props()
 
         template = self.templates.load(props.get("template", None))
@@ -186,14 +162,11 @@ class VegaRenderer(Renderer):
                 props["y"] = first(
                     f for f in reversed(fields) if f not in skip
                 )
-            filled_template = self.fill_template(template, datapoints, props)
-
-            return filled_template
-
+            return template.render(datapoints, props=props)
         return None
 
     def _convert(self, path: "StrPath"):
-        return self.as_json()
+        return self.get_vega()
 
     @staticmethod
     def matches(data):
